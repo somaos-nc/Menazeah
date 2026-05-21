@@ -10,8 +10,8 @@ In Menazeah we strictly adhere to the WTTITRTL Kata: (pron. Wetitrital)
 7. Loop
 
 ## Core Architectural Rules
-- Continuous Merge via Firebase RTDB.
-- Conductor Super Agent exists ONLY on the project owner's machine.
-- `rsync` for filesystem sync between users.
-- NAT hole punching for `rsync`.
-- RTL support is mandatory.
+- **Continuous Merge via Firebase Cloud Functions:** The "Conductor SuperAgent" is implemented as a set of serverless functions to enable headless orchestration.
+- **Web-Native P2P:** Use WebRTC Data Channels for real-time filesystem synchronization (Web-rsync).
+- **Virtual Filesystem:** All project code is stored in `lightning-fs` (IndexedDB) within the browser.
+- **Git Operations:** Use `isomorphic-git` for all version control tasks in the client.
+- **RTL Support:** Mandatory for all UI components and terminal displays.
