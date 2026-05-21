@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
+import { Shell } from '../services/shell';
 
 interface TerminalProps {
   id: string;
@@ -9,9 +10,11 @@ interface TerminalProps {
   onData?: (data: string) => void;
 }
 
-const TerminalComponent: React.FC<TerminalProps> = ({ id, title, onData }) => {
+const TerminalComponent = ({ title }: TerminalProps) => {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Terminal | null>(null);
+  const shellRef = useRef<Shell | null>(null);
+  const inputBuffer = useRef<string>('');
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -28,15 +31,23 @@ const TerminalComponent: React.FC<TerminalProps> = ({ id, title, onData }) => {
     term.open(terminalRef.current);
     fitAddon.fit();
 
+    shellRef.current = new Shell((data) => term.write(data));
+
     term.writeln(`\x1b[1;32mMenazeah ${title} Terminal\x1b[0m`);
     term.write('\r\n$ ');
 
     term.onData((data) => {
-      if (onData) onData(data);
-      // Basic echo for now
       if (data === '\r') {
-        term.write('\r\n$ ');
+        const cmd = inputBuffer.current;
+        inputBuffer.current = '';
+        shellRef.current?.execute(cmd);
+      } else if (data === '\x7f') { // Backspace
+        if (inputBuffer.current.length > 0) {
+          inputBuffer.current = inputBuffer.current.slice(0, -1);
+          term.write('\b \b');
+        }
       } else {
+        inputBuffer.current += data;
         term.write(data);
       }
     });
@@ -50,7 +61,7 @@ const TerminalComponent: React.FC<TerminalProps> = ({ id, title, onData }) => {
       window.removeEventListener('resize', handleResize);
       term.dispose();
     };
-  }, [title, onData]);
+  }, [title]);
 
   return (
     <div className="terminal-container" style={{ flex: 1, display: 'flex', flexDirection: 'column', margin: '5px' }}>
@@ -63,3 +74,4 @@ const TerminalComponent: React.FC<TerminalProps> = ({ id, title, onData }) => {
 };
 
 export default TerminalComponent;
+

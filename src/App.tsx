@@ -1,4 +1,3 @@
-import React from 'react';
 import TerminalComponent from './components/Terminal';
 import './App.css';
 
