@@ -17,14 +17,14 @@ const io = new Server(server, {
 });
 
 const PORT = 9001;
-const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
+const shell = process.env.SHELL || (os.platform() === 'win32' ? 'powershell.exe' : 'bash');
 
 io.on('connection', (socket) => {
   console.log('Menazeah UI connected - Establishing PTY Tunnel');
 
-  // Spawn a real pseudoterminal
-  const ptyProcess = pty.spawn(shell, [], {
-    name: 'xterm-color',
+  // Spawn a real pseudoterminal as a login shell
+  const ptyProcess = pty.spawn(shell, os.platform() === 'win32' ? [] : ['-l'], {
+    name: 'xterm-256color',
     cols: 80,
     rows: 30,
     cwd: process.cwd(),
