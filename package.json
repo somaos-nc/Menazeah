@@ -19,6 +19,7 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "simple-peer": "^9.11.1",
+    "socket.io-client": "^4.8.3",
     "xterm": "^5.3.0",
     "xterm-addon-fit": "^0.8.0"
   },
