@@ -19,6 +19,14 @@ const tools: FunctionDeclaration[] = [
     }
   },
   {
+    name: "pwd",
+    description: "Get the current working directory path",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {}
+    }
+  },
+  {
     name: "mkdir",
     description: "Create a new directory",
     parameters: {
@@ -83,7 +91,7 @@ const tools: FunctionDeclaration[] = [
 export class Shell {
   private currentDir: string = '/';
   private apiKey: string | null = null;
-  private currentModel: string = 'gemini-1.5-flash';
+  private currentModel: string = 'gemini-2.5-flash';
   private onWrite: (data: string) => void;
   private isInteractiveMode: boolean = false;
   private chatSession: ChatSession | null = null;
@@ -185,11 +193,13 @@ export class Shell {
 
     this.onWrite('\r\n\x1b[1;34mThinking...\x1b[0m');
     try {
-      const result = await this.chatSession.sendMessage(input);
-      const response = await result.response;
+      let result = await this.chatSession.sendMessage(input);
+      let response = result.response;
       
-      const functionCalls = response.functionCalls();
-      if (functionCalls && functionCalls.length > 0) {
+      while (response.functionCalls() && response.functionCalls()!.length > 0) {
+        const functionCalls = response.functionCalls()!;
+        const functionResponses = [];
+
         for (const call of functionCalls) {
           const { name, args } = call;
           this.onWrite(`\r\n\x1b[1;36m[Tool Call: ${name}]\x1b[0m`);
@@ -199,6 +209,9 @@ export class Shell {
               case 'ls':
                 const lsFiles = await fs.readdir((args as any).path || this.currentDir);
                 toolResult = lsFiles.join(', ');
+                break;
+              case 'pwd':
+                toolResult = this.currentDir;
                 break;
               case 'mkdir':
                 await this.mkdir((args as any).dir);
@@ -221,18 +234,22 @@ export class Shell {
           } catch (e: any) {
             toolResult = `Error: ${e.message}`;
           }
-          
-          const followUp = await this.chatSession.sendMessage([{
+
+          functionResponses.push({
             functionResponse: {
               name,
               response: { result: toolResult }
             }
-          }]);
-          const followUpText = followUp.response.text();
-          this.onWrite(`\r\n\r\n\x1b[1;32mGemini (${this.currentModel}):\x1b[0m ${followUpText}`);
+          });
         }
-      } else {
-        const text = response.text();
+
+        // Send all function responses back to the model
+        result = await this.chatSession.sendMessage(functionResponses);
+        response = result.response;
+      }
+
+      const text = response.text();
+      if (text) {
         this.onWrite(`\r\n\r\n\x1b[1;32mGemini (${this.currentModel}):\x1b[0m ${text}`);
       }
     } catch (err: any) {
