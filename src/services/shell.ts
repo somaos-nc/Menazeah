@@ -164,7 +164,7 @@ export class Shell {
 
     const prompt = args.join(' ');
     const genAI = new GoogleGenerativeAI(this.apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     if (!prompt) {
       // Enter interactive mode
@@ -172,7 +172,7 @@ export class Shell {
       this.chatSession = model.startChat({
         history: [],
         generationConfig: {
-          maxOutputTokens: 1000,
+          maxOutputTokens: 2000,
         },
       });
       this.onWrite('\r\n\x1b[1;35mEntering Gemini Interactive Mode. Type "exit" to return to shell.\x1b[0m');
