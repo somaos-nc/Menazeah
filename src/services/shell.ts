@@ -65,6 +65,9 @@ export class Shell {
         case 'gemini':
           await this.gemini(args.slice(1));
           break;
+        case 'models':
+          await this.listModels();
+          break;
         case 'help':
           this.help();
           break;
@@ -80,6 +83,24 @@ export class Shell {
 
     if (!this.isInteractiveMode) {
       this.onWrite('\r\n$ ');
+    }
+  }
+
+  private async listModels() {
+    if (!this.apiKey) throw new Error('API key not set');
+    this.onWrite('\r\nFetching available models...');
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${this.apiKey}`);
+      const data = await response.json();
+      if (data.models) {
+        data.models.forEach((m: any) => {
+          this.onWrite(`\r\n- ${m.name.replace('models/', '')} (${m.displayName})`);
+        });
+      } else {
+        this.onWrite(`\r\nNo models found or error: ${JSON.stringify(data)}`);
+      }
+    } catch (err: any) {
+      this.onWrite(`\r\nError: ${err.message}`);
     }
   }
 
