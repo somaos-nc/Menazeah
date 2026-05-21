@@ -1,6 +1,6 @@
 import { gitService } from './git';
 import { settingsService } from './db';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, ChatSession } from '@google/generative-ai';
 
 const fs = gitService.fs.promises;
 
@@ -8,6 +8,8 @@ export class Shell {
   private currentDir: string = '/';
   private apiKey: string | null = null;
   private onWrite: (data: string) => void;
+  private isInteractiveMode: boolean = false;
+  private chatSession: ChatSession | null = null;
 
   constructor(onWrite: (data: string) => void) {
     this.onWrite = onWrite;
@@ -24,6 +26,11 @@ export class Shell {
   }
 
   async execute(commandLine: string) {
+    if (this.isInteractiveMode) {
+      await this.handleInteractiveInput(commandLine);
+      return;
+    }
+
     const args = commandLine.trim().split(/\s+/);
     const cmd = args[0];
 
@@ -61,6 +68,9 @@ export class Shell {
         case 'help':
           this.help();
           break;
+        case 'clear':
+          this.onWrite('\x1bc');
+          break;
         default:
           this.onWrite(`\r\ncommand not found: ${cmd}`);
       }
@@ -68,7 +78,37 @@ export class Shell {
       this.onWrite(`\r\n\x1b[1;31merror:\x1b[0m ${err.message}`);
     }
 
-    this.onWrite('\r\n$ ');
+    if (!this.isInteractiveMode) {
+      this.onWrite('\r\n$ ');
+    }
+  }
+
+  private async handleInteractiveInput(input: string) {
+    if (input.trim().toLowerCase() === 'exit' || input.trim().toLowerCase() === 'quit') {
+      this.isInteractiveMode = false;
+      this.chatSession = null;
+      this.onWrite('\r\nExiting Gemini Mode.');
+      this.onWrite('\r\n$ ');
+      return;
+    }
+
+    if (!this.chatSession) {
+      this.onWrite('\r\n\x1b[1;31mError:\x1b[0m No active chat session.');
+      this.isInteractiveMode = false;
+      this.onWrite('\r\n$ ');
+      return;
+    }
+
+    this.onWrite('\r\n\x1b[1;34mThinking...\x1b[0m');
+    try {
+      const result = await this.chatSession.sendMessage(input);
+      const response = await result.response;
+      const text = response.text();
+      this.onWrite(`\r\n\r\n\x1b[1;32mGemini:\x1b[0m ${text}`);
+    } catch (err: any) {
+      this.onWrite(`\r\n\x1b[1;31mGemini Error:\x1b[0m ${err.message}`);
+    }
+    this.onWrite('\r\n\r\n\x1b[1;35mGemini Mode\x1b[0m > ');
   }
 
   private async setKey(key: string) {
@@ -123,20 +163,29 @@ export class Shell {
     }
 
     const prompt = args.join(' ');
+    const genAI = new GoogleGenerativeAI(this.apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
     if (!prompt) {
-      this.onWrite('\r\nUsage: gemini <prompt>');
+      // Enter interactive mode
+      this.isInteractiveMode = true;
+      this.chatSession = model.startChat({
+        history: [],
+        generationConfig: {
+          maxOutputTokens: 1000,
+        },
+      });
+      this.onWrite('\r\n\x1b[1;35mEntering Gemini Interactive Mode. Type "exit" to return to shell.\x1b[0m');
+      this.onWrite('\r\n\x1b[1;35mGemini Mode\x1b[0m > ');
       return;
     }
 
+    // Single prompt mode
     this.onWrite('\r\n\x1b[1;34mThinking...\x1b[0m');
-    
     try {
-      const genAI = new GoogleGenerativeAI(this.apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
       const result = await model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
-      
       this.onWrite(`\r\n\x1b[1;32mGemini:\x1b[0m ${text}`);
     } catch (err: any) {
       this.onWrite(`\r\n\x1b[1;31mGemini Error:\x1b[0m ${err.message}`);
@@ -144,6 +193,6 @@ export class Shell {
   }
 
   private help() {
-    this.onWrite(`\r\nAvailable commands: ls, pwd, cd, mkdir, touch, cat, set-key, gemini, help`);
+    this.onWrite(`\r\nAvailable commands: ls, pwd, cd, mkdir, touch, cat, set-key, gemini, help, clear`);
   }
 }
