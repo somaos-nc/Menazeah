@@ -1,8 +1,84 @@
 import { gitService } from './git';
 import { settingsService } from './db';
-import { GoogleGenerativeAI, ChatSession } from '@google/generative-ai';
+import { GoogleGenerativeAI, ChatSession, type FunctionDeclaration, SchemaType } from '@google/generative-ai';
 
 const fs = gitService.fs.promises;
+
+const tools: FunctionDeclaration[] = [
+  {
+    name: "ls",
+    description: "List files and directories in the current or specified directory",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        path: {
+          type: SchemaType.STRING,
+          description: "The directory path to list (optional)"
+        }
+      }
+    }
+  },
+  {
+    name: "mkdir",
+    description: "Create a new directory",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        dir: {
+          type: SchemaType.STRING,
+          description: "The name or path of the directory to create"
+        }
+      },
+      required: ["dir"]
+    }
+  },
+  {
+    name: "touch",
+    description: "Create a new empty file",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        file: {
+          type: SchemaType.STRING,
+          description: "The name or path of the file to create"
+        }
+      },
+      required: ["file"]
+    }
+  },
+  {
+    name: "readFile",
+    description: "Read the content of a file",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        file: {
+          type: SchemaType.STRING,
+          description: "The path of the file to read"
+        }
+      },
+      required: ["file"]
+    }
+  },
+  {
+    name: "writeFile",
+    description: "Write content to a file",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        file: {
+          type: SchemaType.STRING,
+          description: "The path of the file to write to"
+        },
+        content: {
+          type: SchemaType.STRING,
+          description: "The text content to write"
+        }
+      },
+      required: ["file", "content"]
+    }
+  }
+];
 
 export class Shell {
   private currentDir: string = '/';
@@ -67,11 +143,11 @@ export class Shell {
         case 'set-model':
           await this.setModel(args[1]);
           break;
-        case 'gemini':
-          await this.gemini(args.slice(1));
-          break;
         case 'models':
           await this.listModels();
+          break;
+        case 'gemini':
+          await this.gemini(args.slice(1));
           break;
         case 'help':
           this.help();
@@ -89,6 +165,80 @@ export class Shell {
     if (!this.isInteractiveMode) {
       this.onWrite('\r\n$ ');
     }
+  }
+
+  private async handleInteractiveInput(input: string) {
+    if (input.trim().toLowerCase() === 'exit' || input.trim().toLowerCase() === 'quit') {
+      this.isInteractiveMode = false;
+      this.chatSession = null;
+      this.onWrite('\r\nExiting Gemini Mode.');
+      this.onWrite('\r\n$ ');
+      return;
+    }
+
+    if (!this.chatSession) {
+      this.onWrite('\r\n\x1b[1;31mError:\x1b[0m No active chat session.');
+      this.isInteractiveMode = false;
+      this.onWrite('\r\n$ ');
+      return;
+    }
+
+    this.onWrite('\r\n\x1b[1;34mThinking...\x1b[0m');
+    try {
+      const result = await this.chatSession.sendMessage(input);
+      const response = await result.response;
+      
+      const functionCalls = response.functionCalls();
+      if (functionCalls && functionCalls.length > 0) {
+        for (const call of functionCalls) {
+          const { name, args } = call;
+          this.onWrite(`\r\n\x1b[1;36m[Tool Call: ${name}]\x1b[0m`);
+          let toolResult;
+          try {
+            switch (name) {
+              case 'ls':
+                const lsFiles = await fs.readdir((args as any).path || this.currentDir);
+                toolResult = lsFiles.join(', ');
+                break;
+              case 'mkdir':
+                await this.mkdir((args as any).dir);
+                toolResult = "Directory created successfully";
+                break;
+              case 'touch':
+                await this.touch((args as any).file);
+                toolResult = "File created successfully";
+                break;
+              case 'readFile':
+                toolResult = await fs.readFile((args as any).file, 'utf8');
+                break;
+              case 'writeFile':
+                await fs.writeFile((args as any).file, (args as any).content);
+                toolResult = "File written successfully";
+                break;
+              default:
+                toolResult = "Error: Unknown tool";
+            }
+          } catch (e: any) {
+            toolResult = `Error: ${e.message}`;
+          }
+          
+          const followUp = await this.chatSession.sendMessage([{
+            functionResponse: {
+              name,
+              response: { result: toolResult }
+            }
+          }]);
+          const followUpText = followUp.response.text();
+          this.onWrite(`\r\n\r\n\x1b[1;32mGemini (${this.currentModel}):\x1b[0m ${followUpText}`);
+        }
+      } else {
+        const text = response.text();
+        this.onWrite(`\r\n\r\n\x1b[1;32mGemini (${this.currentModel}):\x1b[0m ${text}`);
+      }
+    } catch (err: any) {
+      this.onWrite(`\r\n\x1b[1;31mGemini Error:\x1b[0m ${err.message}`);
+    }
+    this.onWrite(`\r\n\r\n\x1b[1;35mGemini Mode (${this.currentModel})\x1b[0m > `);
   }
 
   private async setKey(key: string) {
@@ -123,34 +273,6 @@ export class Shell {
     } catch (err: any) {
       this.onWrite(`\r\nError: ${err.message}`);
     }
-  }
-
-  private async handleInteractiveInput(input: string) {
-    if (input.trim().toLowerCase() === 'exit' || input.trim().toLowerCase() === 'quit') {
-      this.isInteractiveMode = false;
-      this.chatSession = null;
-      this.onWrite('\r\nExiting Gemini Mode.');
-      this.onWrite('\r\n$ ');
-      return;
-    }
-
-    if (!this.chatSession) {
-      this.onWrite('\r\n\x1b[1;31mError:\x1b[0m No active chat session.');
-      this.isInteractiveMode = false;
-      this.onWrite('\r\n$ ');
-      return;
-    }
-
-    this.onWrite('\r\n\x1b[1;34mThinking...\x1b[0m');
-    try {
-      const result = await this.chatSession.sendMessage(input);
-      const response = await result.response;
-      const text = response.text();
-      this.onWrite(`\r\n\r\n\x1b[1;32mGemini (${this.currentModel}):\x1b[0m ${text}`);
-    } catch (err: any) {
-      this.onWrite(`\r\n\x1b[1;31mGemini Error:\x1b[0m ${err.message}`);
-    }
-    this.onWrite(`\r\n\r\n\x1b[1;35mGemini Mode (${this.currentModel})\x1b[0m > `);
   }
 
   private async ls(args: string[]) {
@@ -199,7 +321,10 @@ export class Shell {
 
     const prompt = args.join(' ');
     const genAI = new GoogleGenerativeAI(this.apiKey);
-    const model = genAI.getGenerativeModel({ model: this.currentModel });
+    const model = genAI.getGenerativeModel({ 
+      model: this.currentModel,
+      tools: [{ functionDeclarations: tools }]
+    });
 
     if (!prompt) {
       // Enter interactive mode
