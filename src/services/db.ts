@@ -27,6 +27,20 @@ export const settingsService = {
     } else {
       await db.settings.add({ key: 'gemini_api_key', value: apiKey });
     }
+  },
+
+  async getGeminiModel() {
+    const setting = await db.settings.where('key').equals('gemini_model').first();
+    return setting?.value || 'gemini-2.5-flash';
+  },
+
+  async setGeminiModel(model: string) {
+    const existing = await db.settings.where('key').equals('gemini_model').first();
+    if (existing) {
+      await db.settings.update(existing.id!, { value: model });
+    } else {
+      await db.settings.add({ key: 'gemini_model', value: model });
+    }
   }
 };
 

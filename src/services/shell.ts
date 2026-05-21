@@ -7,6 +7,7 @@ const fs = gitService.fs.promises;
 export class Shell {
   private currentDir: string = '/';
   private apiKey: string | null = null;
+  private currentModel: string = 'gemini-1.5-flash';
   private onWrite: (data: string) => void;
   private isInteractiveMode: boolean = false;
   private chatSession: ChatSession | null = null;
@@ -18,6 +19,7 @@ export class Shell {
 
   private async init() {
     this.apiKey = await settingsService.getGeminiApiKey() || null;
+    this.currentModel = await settingsService.getGeminiModel();
     if (!this.apiKey) {
       this.onWrite('\r\n\x1b[1;33mWelcome to Menazeah!\x1b[0m');
       this.onWrite('\r\nTo use the Gemini CLI, please set your API key:');
@@ -62,6 +64,9 @@ export class Shell {
         case 'set-key':
           await this.setKey(args[1]);
           break;
+        case 'set-model':
+          await this.setModel(args[1]);
+          break;
         case 'gemini':
           await this.gemini(args.slice(1));
           break;
@@ -86,6 +91,20 @@ export class Shell {
     }
   }
 
+  private async setKey(key: string) {
+    if (!key) throw new Error('missing API key');
+    await settingsService.setGeminiApiKey(key);
+    this.apiKey = key;
+    this.onWrite('\r\nAPI key set successfully!');
+  }
+
+  private async setModel(model: string) {
+    if (!model) throw new Error('missing model name');
+    await settingsService.setGeminiModel(model);
+    this.currentModel = model;
+    this.onWrite(`\r\nModel set to: \x1b[1;32m${model}\x1b[0m`);
+  }
+
   private async listModels() {
     if (!this.apiKey) throw new Error('API key not set');
     this.onWrite('\r\nFetching available models...');
@@ -94,7 +113,9 @@ export class Shell {
       const data = await response.json();
       if (data.models) {
         data.models.forEach((m: any) => {
-          this.onWrite(`\r\n- ${m.name.replace('models/', '')} (${m.displayName})`);
+          const name = m.name.replace('models/', '');
+          const isCurrent = name === this.currentModel;
+          this.onWrite(`\r\n${isCurrent ? '\x1b[1;32m* ' : '- '}${name} (${m.displayName})\x1b[0m`);
         });
       } else {
         this.onWrite(`\r\nNo models found or error: ${JSON.stringify(data)}`);
@@ -125,18 +146,11 @@ export class Shell {
       const result = await this.chatSession.sendMessage(input);
       const response = await result.response;
       const text = response.text();
-      this.onWrite(`\r\n\r\n\x1b[1;32mGemini:\x1b[0m ${text}`);
+      this.onWrite(`\r\n\r\n\x1b[1;32mGemini (${this.currentModel}):\x1b[0m ${text}`);
     } catch (err: any) {
       this.onWrite(`\r\n\x1b[1;31mGemini Error:\x1b[0m ${err.message}`);
     }
-    this.onWrite('\r\n\r\n\x1b[1;35mGemini Mode\x1b[0m > ');
-  }
-
-  private async setKey(key: string) {
-    if (!key) throw new Error('missing API key');
-    await settingsService.setGeminiApiKey(key);
-    this.apiKey = key;
-    this.onWrite('\r\nAPI key set successfully!');
+    this.onWrite(`\r\n\r\n\x1b[1;35mGemini Mode (${this.currentModel})\x1b[0m > `);
   }
 
   private async ls(args: string[]) {
@@ -185,7 +199,7 @@ export class Shell {
 
     const prompt = args.join(' ');
     const genAI = new GoogleGenerativeAI(this.apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: this.currentModel });
 
     if (!prompt) {
       // Enter interactive mode
@@ -196,8 +210,8 @@ export class Shell {
           maxOutputTokens: 2000,
         },
       });
-      this.onWrite('\r\n\x1b[1;35mEntering Gemini Interactive Mode. Type "exit" to return to shell.\x1b[0m');
-      this.onWrite('\r\n\x1b[1;35mGemini Mode\x1b[0m > ');
+      this.onWrite(`\r\n\x1b[1;35mEntering Gemini Interactive Mode (${this.currentModel}). Type "exit" to return to shell.\x1b[0m`);
+      this.onWrite(`\r\n\x1b[1;35mGemini Mode (${this.currentModel})\x1b[0m > `);
       return;
     }
 
@@ -207,13 +221,13 @@ export class Shell {
       const result = await model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
-      this.onWrite(`\r\n\x1b[1;32mGemini:\x1b[0m ${text}`);
+      this.onWrite(`\r\n\x1b[1;32mGemini (${this.currentModel}):\x1b[0m ${text}`);
     } catch (err: any) {
       this.onWrite(`\r\n\x1b[1;31mGemini Error:\x1b[0m ${err.message}`);
     }
   }
 
   private help() {
-    this.onWrite(`\r\nAvailable commands: ls, pwd, cd, mkdir, touch, cat, set-key, gemini, help, clear`);
+    this.onWrite(`\r\nAvailable commands: ls, pwd, cd, mkdir, touch, cat, set-key, set-model, models, gemini, help, clear`);
   }
 }
