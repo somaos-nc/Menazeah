@@ -2,11 +2,8 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
-const fs = require('fs').promises;
-const path = require('path');
-const { exec } = require('child_process');
-const util = require('util');
-const execPromise = util.promisify(exec);
+const pty = require('node-pty');
+const os = require('os');
 
 const app = express();
 app.use(cors());
@@ -20,82 +17,42 @@ const io = new Server(server, {
 });
 
 const PORT = 9001;
-let currentDir = process.cwd();
+const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
 
 io.on('connection', (socket) => {
-  console.log('Menazeah UI connected');
+  console.log('Menazeah UI connected - Establishing PTY Tunnel');
 
-  socket.on('ls', async (dir) => {
-    try {
-      const target = dir ? path.resolve(currentDir, dir) : currentDir;
-      const files = await fs.readdir(target);
-      socket.emit('ls_res', { success: true, files });
-    } catch (err) {
-      socket.emit('ls_res', { success: false, error: err.message });
-    }
+  // Spawn a real pseudoterminal
+  const ptyProcess = pty.spawn(shell, [], {
+    name: 'xterm-color',
+    cols: 80,
+    rows: 30,
+    cwd: process.cwd(),
+    env: process.env
   });
 
-  socket.on('pwd', () => {
-    socket.emit('pwd_res', { success: true, dir: currentDir });
+  // Pipe PTY output to Web UI
+  ptyProcess.on('data', (data) => {
+    socket.emit('pty_data', data);
   });
 
-  socket.on('cd', async (dir) => {
-    try {
-      const newDir = path.resolve(currentDir, dir);
-      const stat = await fs.stat(newDir);
-      if (stat.isDirectory()) {
-        currentDir = newDir;
-        socket.emit('cd_res', { success: true, dir: currentDir });
-      } else {
-        throw new Error('Not a directory');
-      }
-    } catch (err) {
-      socket.emit('cd_res', { success: false, error: err.message });
-    }
+  // Pipe Web UI input to PTY
+  socket.on('pty_input', (data) => {
+    ptyProcess.write(data);
   });
 
-  socket.on('mkdir', async (dir) => {
-    try {
-      await fs.mkdir(path.resolve(currentDir, dir), { recursive: true });
-      socket.emit('mkdir_res', { success: true });
-    } catch (err) {
-      socket.emit('mkdir_res', { success: false, error: err.message });
-    }
-  });
-
-  socket.on('writeFile', async ({ file, content }) => {
-    try {
-      await fs.writeFile(path.resolve(currentDir, file), content);
-      socket.emit('writeFile_res', { success: true });
-    } catch (err) {
-      socket.emit('writeFile_res', { success: false, error: err.message });
-    }
-  });
-
-  socket.on('readFile', async (file) => {
-    try {
-      const content = await fs.readFile(path.resolve(currentDir, file), 'utf8');
-      socket.emit('readFile_res', { success: true, content });
-    } catch (err) {
-      socket.emit('readFile_res', { success: false, error: err.message });
-    }
-  });
-
-  socket.on('exec', async (command) => {
-    try {
-      const { stdout, stderr } = await execPromise(command, { cwd: currentDir });
-      socket.emit('exec_res', { success: true, stdout, stderr });
-    } catch (err) {
-      socket.emit('exec_res', { success: false, error: err.message, stderr: err.stderr });
-    }
+  // Handle terminal resizing
+  socket.on('pty_resize', ({ cols, rows }) => {
+    ptyProcess.resize(cols, rows);
   });
 
   socket.on('disconnect', () => {
-    console.log('Menazeah UI disconnected');
+    console.log('Menazeah UI disconnected - Terminating PTY');
+    ptyProcess.kill();
   });
 });
 
 server.listen(PORT, () => {
-  console.log(`Menazeah Local Agent running on http://localhost:${PORT}`);
-  console.log(`Current Working Directory: ${currentDir}`);
+  console.log(`Menazeah Local PTY Agent running on http://localhost:${PORT}`);
+  console.log(`Tunneling shell: ${shell}`);
 });
