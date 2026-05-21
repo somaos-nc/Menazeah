@@ -1,38 +1,42 @@
-# Menazeah (מנצח) - The AI Conductor
+# Menazeah (מנצח) - Conductor
 
-Menazeah (Hebrew for Conductor) is a real-time collaborative AI-powered development environment. It enables humans and Gemini AI agents to work together seamlessly on the same codebase, synchronized across multiple machines.
+Menazeah (Hebrew for "Conductor") is a real-time, GPU AI-powered collaborative development environment. It enables "intelligence couples" (Human + Gemini) to work together seamlessly on the same codebase, synchronized across multiple machines through a continuous git merge orchestration.
+
+## Core Vision
+
+Menazeah acts as a Conductor SuperAgent that orchestrates the collaboration of multiple developers and their respective AI assistants. It ensures that every participant's contributions are merged continuously into a central repository, maintaining a "live" manifest of the project's state.
 
 ## Key Features
 
 - **Dual GPU-Powered Terminals:**
-    - **Left Terminal (IRC/Orchestration):** A project-wide summary of all user sessions, AI responses, and collaborative chat.
-    - **Right Terminal (Local Session):** Your personal Gemini CLI session for direct interaction and coding.
+    - **Left Terminal (The Conductor):** A project-wide summary of all user sessions, AI responses, and an IRC-like chat for real-time communication.
+    - **Right Terminal (The Gemini CLI):** The active workspace where each user interacts with their personal Gemini CLI agent.
 - **Continuous Git Orchestration:**
-    - Real-time synchronization of project forks via Firebase Realtime Database.
-    - Automated continuous merging managed by a single Conductor Super Agent (the project owner).
+    - Real-time synchronization of project forks via Firebase Realtime Database (RTDB).
+    - Automated continuous merging managed by the Conductor SuperAgent (on the project owner's computer).
     - Intelligent merge error handling with manual intervention options.
 - **Real-Time Synchronization:**
     - Filesystem synchronization using `rsync` with NAT hole punching support.
-    - Ensures all teammates have the latest merged codebase locally.
+    - Only the continuously merged repo is synced across all user file systems.
 - **Deep Integrations:**
     - **GitHub:** Direct linking of local folders to GitHub repositories.
     - **Google Meet:** Automatically generated meeting rooms for each project.
     - **Google Cloud:** Integrated for GPU-powered terminal sessions.
 - **Multi-User Collaboration:**
     - User discovery via name or email search.
-    - Visual distinction between "Intelligence Couples" (Human + Gemini) via synchronized app and terminal themes.
-    - RTL (Right-to-Left) language support for global accessibility.
+    - Visual distinction between users via synchronized app and terminal themes.
+    - Full RTL (Right-to-Left) language support for global accessibility.
 
 ## Development Methodology: WTTITRTL
 
 We strictly adhere to the **WTTITRTL** Kata:
-1.  **W**rite tests
-2.  **T**est (Verify failure)
-3.  **I**mplement
-4.  **T**est (Verify success)
-5.  **R**efactor
-6.  **T**est (Verify no regressions)
-7.  **L**oop
+1. **W**rite tests
+2. **T**est
+3. **I**mplement
+4. **T**est
+5. **R**efactor
+6. **T**est
+7. **L**oop
 
 ## Tech Stack (Proposed)
 
@@ -42,14 +46,27 @@ We strictly adhere to the **WTTITRTL** Kata:
 - **Sync:** `rsync` with custom NAT hole punching logic
 - **AI:** Gemini API via Gemini CLI
 
-## Getting Started (Coming Soon)
+## Getting Started
 
-1.  Login to Menazeah.
-2.  Authenticate with GitHub.
-3.  Create or link a project.
-4.  Invite your teammates.
-5.  Start CoCoding.
+### Prerequisites
 
-## License
+- Gemini CLI
+- GitHub CLI (`gh`)
+- Google Cloud SDK (`gcloud`)
+- Firebase Account (for RTDB)
 
-Private / All Rights Reserved.
+### Usage Case
+
+1. **Login:** Log into Menazeah and GitHub.
+2. **Project Creation:** Create a local folder and link it to a new GitHub repo.
+3. **Team Selection:** Select teammates to invite to the project.
+4. **CoCode:** Start collaborative coding with AI orchestration.
+5. **Loop:** Iterate and build together.
+
+## Documentation
+
+- [TUTORIAL.md](TUTORIAL.md) - In-app tutorial for getting started.
+- [GEMINI.md](GEMINI.md) - Project-specific instructions for Gemini agents.
+
+---
+*Created by the Conductor SuperAgent.*
