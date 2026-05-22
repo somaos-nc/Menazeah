@@ -1,73 +1,74 @@
-# React + TypeScript + Vite
+# Menazeah (מנצח) 🚀
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An open-source, web-native, AI-powered collaborative development environment (IDE) built for real-time peer-to-peer collaboration and headless agentic orchestration.
 
-Currently, two official plugins are available:
+🔗 **Live Web UI:** [https://menazeah-conductor.web.app/](https://menazeah-conductor.web.app/)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 🌟 Key Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Continuous Merge via Firebase Cloud Functions:** Powered by the "Conductor SuperAgent" serverless orchestrator.
+- **Web-Native P2P:** Utilizes WebRTC Data Channels for real-time filesystem synchronization (Web-rsync).
+- **Virtual Filesystem:** All project code is stored securely inside the browser via `lightning-fs` (IndexedDB).
+- **In-Browser Git Operations:** Full version control directly in the client using `isomorphic-git`.
+- **Dual Terminal Layout:**
+  - **Left Terminal:** Conductor Orchestration (agent activity, merges, action summaries).
+  - **Right Terminal:** Gemini CLI Workspace (interactive terminal shell).
+- **RTL Support:** Built-in Right-to-Left language and display support for UI components and terminals.
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 🛠️ Tech Stack
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- **Frontend:** React, TypeScript, Vite
+- **Storage:** Dexie (IndexedDB), `@isomorphic-git/lightning-fs`
+- **P2P Sync:** WebRTC (`simple-peer`, `socket.io-client` for signaling)
+- **Git:** `isomorphic-git`
+- **Terminal UI:** `xterm.js`
+- **Backend Orchestration:** Firebase Cloud Functions & Cloud Hosting
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+---
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 🧑‍💻 Getting Started
+
+### Prerequisites
+
+- Node.js (v18 or higher)
+- npm or yarn
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/somaos-nc/Menazeah.git
+   cd Menazeah
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Run the development server locally:
+   ```bash
+   npm run dev
+   ```
+   Open `http://localhost:5173` to view the application in your browser.
+
+---
+
+## 🧪 Testing
+
+We adhere strictly to the **WTTITRTL** (Write Tests, Test, Implement, Test, Refactor, Test, Loop) development lifecycle.
+
+To run the automated test suite:
+```bash
+npm run test
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 📄 License
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+This project is open-source and available under the [MIT License](LICENSE).
